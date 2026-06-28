@@ -81,9 +81,12 @@ jobs:
           export ARCH="arm64"
           export SUBARCH="arm64"
 
+          # NDK r29 中 LLVM 预编译目录
           export CLANG_DIR=$GITHUB_WORKSPACE/workdir/toolchain/clang-r563880c
           export PATH="$CLANG_DIR/bin:$PATH"
 
+          # ========== 关键的环境变量（解决兼容性） ==========
+          # 显式指定各个工具，防止 Makefile 回退到系统 GCC
           export CC=clang
           export LD=ld.lld
           export AR=llvm-ar
@@ -95,22 +98,20 @@ jobs:
           export HOSTCC=clang
           export HOSTCXX=clang++
 
-          # ↓↓↓ 关键：GCC 4.9 只当 CROSS_COMPILE（汇编/VDSO 用），CC 仍然是 clang
-          export CROSS_COMPILE=$GITHUB_WORKSPACE/workdir/toolchain/gcc64/bin/aarch64-linux-android-
-          # 如果 defconfig 里开了 32 位兼容（sm7150 一般不开），再补下面这行，否则可删
-          # export CROSS_COMPILE_ARM32=
+          # 告诉 Clang 目标平台的三元组（Android arm64 常用 aarch64-linux-android 或 aarch64-linux-gnu）
+          # export CLANG_TRIPLE=aarch64-linux-gnu-
 
+          # 有些旧内核 Makefile 仍然检查 CROSS_COMPILE，设为空可避免警告
+          export CROSS_COMPILE=$GITHUB_WORKSPACE/workdir/toolchain/gcc64/bin/aarch64-linux-android-
+
+          # 验证工具链版本
           clang --version
           ld.lld --version
 
           cd $GITHUB_WORKSPACE/workdir/source
 
+          # 编译（LLVM=1 依然开启，配合上面环境变量双重保险）
           make LLVM=1 O=out vendor/sm7150-perf_defconfig
-          # 顺手处理上一条里那个 STACKPROTECTOR_STRONG（clang-r563880c 其实支持，
-          # 但 OplusKernelEnvConfig 有时候会乱塞 flag，保险起见留着）
-          ../scripts/config --file out/.config \
-            --disable CC_STACKPROTECTOR_STRONG \
-            --enable CC_STACKPROTECTOR_AUTO
           make -j$(nproc --all) LLVM=1 O=out Image.gz
 
       - name: Upload Kernel (only Image.gz)
