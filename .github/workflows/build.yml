@@ -88,13 +88,6 @@ jobs:
           # ========== 关键的环境变量（解决兼容性） ==========
           # 显式指定各个工具，防止 Makefile 回退到系统 GCC
           export CC=clang
-          export LD=ld.lld
-          export AR=llvm-ar
-          export NM=llvm-nm
-          export OBJCOPY=llvm-objcopy
-          export OBJDUMP=llvm-objdump
-          export READELF=llvm-readelf
-          export STRIP=llvm-strip
           export HOSTCC=clang
           export HOSTCXX=clang++
 
@@ -102,10 +95,7 @@ jobs:
           # export CLANG_TRIPLE=aarch64-linux-gnu-
 
           # 有些旧内核 Makefile 仍然检查 CROSS_COMPILE，设为空可避免警告
-          # export CROSS_COMPILE=$GITHUB_WORKSPACE/workdir/toolchain/gcc64/bin/aarch64-linux-android-
-
-          # 验证工具链版本
-          clang --version
+          export CROSS_COMPILE=$GITHUB_WORKSPACE/workdir/toolchain/gcc64/bin/aarch64-linux-android-
 
           cd $GITHUB_WORKSPACE/workdir/source
 
