@@ -56,7 +56,18 @@ jobs:
 
           # ↓↓↓ 目录名同步改
           echo "CLANG_DIR=$GITHUB_WORKSPACE/workdir/toolchain/clang-r416183b" >> $GITHUB_ENV
-
+          
+      - name: Clone AArch64 GCC (aarch64-linux-android-4.9)
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/workdir/toolchain"
+          cd "$GITHUB_WORKSPACE/workdir/toolchain"
+          git clone --depth 1 \
+            https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 \
+            gcc64
+          # 确认前缀工具存在
+          ls -lh gcc64/bin/aarch64-linux-android-* | head -5
+          echo "GCC64_DIR=$GITHUB_WORKSPACE/workdir/toolchain/gcc64" >> $GITHUB_ENV
+          
       - name: Get Kernel source
         run: |
           git clone --recursive https://github.com/$GITHUB_REPOSITORY/ \
@@ -70,8 +81,7 @@ jobs:
           export ARCH="arm64"
           export SUBARCH="arm64"
 
-          # ↓↓↓ 这里原来硬编码 clang-r563880c，同步改
-          export CLANG_DIR=$GITHUB_WORKSPACE/workdir/toolchain/clang-r416183b
+          export CLANG_DIR=$GITHUB_WORKSPACE/workdir/toolchain/clang-r563880c
           export PATH="$CLANG_DIR/bin:$PATH"
 
           export CC=clang
@@ -85,7 +95,10 @@ jobs:
           export HOSTCC=clang
           export HOSTCXX=clang++
 
-          export CROSS_COMPILE=
+          # ↓↓↓ 关键：GCC 4.9 只当 CROSS_COMPILE（汇编/VDSO 用），CC 仍然是 clang
+          export CROSS_COMPILE=$GITHUB_WORKSPACE/workdir/toolchain/gcc64/bin/aarch64-linux-android-
+          # 如果 defconfig 里开了 32 位兼容（sm7150 一般不开），再补下面这行，否则可删
+          # export CROSS_COMPILE_ARM32=
 
           clang --version
           ld.lld --version
@@ -93,6 +106,11 @@ jobs:
           cd $GITHUB_WORKSPACE/workdir/source
 
           make LLVM=1 O=out vendor/sm7150-perf_defconfig
+          # 顺手处理上一条里那个 STACKPROTECTOR_STRONG（clang-r563880c 其实支持，
+          # 但 OplusKernelEnvConfig 有时候会乱塞 flag，保险起见留着）
+          ../scripts/config --file out/.config \
+            --disable CC_STACKPROTECTOR_STRONG \
+            --enable CC_STACKPROTECTOR_AUTO
           make -j$(nproc --all) LLVM=1 O=out Image.gz
 
       - name: Upload Kernel (only Image.gz)
