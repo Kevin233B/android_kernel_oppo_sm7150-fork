@@ -100,11 +100,15 @@ jobs:
           cd $GITHUB_WORKSPACE/workdir/source
 
           # 编译（LLVM=1 依然开启，配合上面环境变量双重保险）
-          make LLVM=1 O=out vendor/sm7150-perf_defconfig
+          make LLVM=$CLANG_DIR/ O=out vendor/sm7150-perf_defconfig
+
+          # 处理 STACKPROTECTOR_STRONG（如遇则关闭）
           cd out
           ../scripts/config --file .config --disable CC_STACKPROTECTOR_STRONG --enable CC_STACKPROTECTOR_AUTO
           cd ..
-          make -j$(nproc --all) LLVM=1 O=out Image.gz
+
+          # ★ 添加 KCFLAGS 屏蔽 -Werror=strict-prototypes
+          make -j$(nproc --all) LLVM=$CLANG_DIR/ KCFLAGS="-Wno-strict-prototypes" O=out Image.gz
 
       - name: Upload Kernel (only Image.gz)
         uses: actions/upload-artifact@v4
