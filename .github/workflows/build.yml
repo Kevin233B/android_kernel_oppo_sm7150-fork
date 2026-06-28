@@ -110,11 +110,10 @@ jobs:
           cd $GITHUB_WORKSPACE/workdir/source
 
           # 编译（LLVM=1 依然开启，配合上面环境变量双重保险）
-          # 顺手处理 STACKPROTECTOR_STRONG（老内核常见问题）
+          make LLVM=1 O=out vendor/sm7150-perf_defconfig
           cd out
           ../scripts/config --file .config --disable CC_STACKPROTECTOR_STRONG --enable CC_STACKPROTECTOR_AUTO
           cd ..
-          make LLVM=1 O=out vendor/sm7150-perf_defconfig
           make -j$(nproc --all) LLVM=1 O=out Image.gz
 
       - name: Upload Kernel (only Image.gz)
