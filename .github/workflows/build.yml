@@ -1,0 +1,102 @@
+name: Build-Kernel-with-NDK-Clang
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    name: Build Kernel by ${{ github.actor }}
+    runs-on: ubuntu-22.04
+    steps:
+
+      - name: Get branch names.
+        id: branch-names
+        uses: tj-actions/branch-names@v8
+
+      - name: Set SWAP to 5GiB
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 5
+
+      - name: Initialize compilation environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git automake flex lzop bison gperf build-essential zip curl zlib1g-dev \
+            g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev \
+            squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven \
+            libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl \
+            libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev \
+            libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3 \
+            libelf-dev
+          mkdir -p $GITHUB_WORKSPACE/workdir
+          cd $GITHUB_WORKSPACE/workdir
+          echo "BUILD_TIME=$(TZ=Asia/Shanghai date '+%Y%m%d%H%M')" >> $GITHUB_ENV
+
+      - name: Clone Clang toolchain (Git LFS)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq git-lfs
+
+          mkdir -p "$GITHUB_WORKSPACE/workdir/toolchain"
+          cd "$GITHUB_WORKSPACE/workdir/toolchain"
+
+          # ↓↓↓ 换成 LineageOS 的 prebuilt clang r416183b
+          git clone https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b clang-r416183b
+          cd clang-r416183b
+
+          git lfs install
+          git lfs pull
+
+          chmod -R u+x bin/ 2>/dev/null || true
+
+          file bin/clang
+          ls -lh bin/clang
+
+          # ↓↓↓ 目录名同步改
+          echo "CLANG_DIR=$GITHUB_WORKSPACE/workdir/toolchain/clang-r416183b" >> $GITHUB_ENV
+
+      - name: Get Kernel source
+        run: |
+          git clone --recursive https://github.com/$GITHUB_REPOSITORY/ \
+                    -b ${{ steps.branch-names.outputs.current_branch }} --depth 1 \
+                    $GITHUB_WORKSPACE/workdir/source
+
+      - name: Build Kernel with NDK Clang + LLD
+        run: |
+          export KBUILD_BUILD_HOST=Github-Action
+          export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
+          export ARCH="arm64"
+          export SUBARCH="arm64"
+
+          # ↓↓↓ 这里原来硬编码 clang-r563880c，同步改
+          export CLANG_DIR=$GITHUB_WORKSPACE/workdir/toolchain/clang-r416183b
+          export PATH="$CLANG_DIR/bin:$PATH"
+
+          export CC=clang
+          export LD=ld.lld
+          export AR=llvm-ar
+          export NM=llvm-nm
+          export OBJCOPY=llvm-objcopy
+          export OBJDUMP=llvm-objdump
+          export READELF=llvm-readelf
+          export STRIP=llvm-strip
+          export HOSTCC=clang
+          export HOSTCXX=clang++
+
+          export CROSS_COMPILE=
+
+          clang --version
+          ld.lld --version
+
+          cd $GITHUB_WORKSPACE/workdir/source
+
+          make LLVM=1 O=out vendor/sm7150-perf_defconfig
+          make -j$(nproc --all) LLVM=1 O=out Image.gz
+
+      - name: Upload Kernel (only Image.gz)
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel
+          path: workdir/source/out/arch/arm64/boot/Image.gz
