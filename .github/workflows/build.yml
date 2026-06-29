@@ -92,7 +92,7 @@ jobs:
           # export CLANG_TRIPLE=aarch64-linux-gnu-
 
           # 有些旧内核 Makefile 仍然检查 CROSS_COMPILE，设为空可避免警告
-          # export CROSS_COMPILE=$GITHUB_WORKSPACE/workdir/toolchain/gcc64/bin/aarch64-linux-android-
+          export CROSS_COMPILE=$GITHUB_WORKSPACE/workdir/toolchain/gcc64/bin/aarch64-linux-android-
 
           cd $GITHUB_WORKSPACE/workdir/source
 
