@@ -82,7 +82,7 @@ jobs:
           export SUBARCH="arm64"
 
           export CLANG_DIR=$GITHUB_WORKSPACE/workdir/toolchain/clang-r563880c
-          export PATH="$CLANG_DIR/bin:$PATH"
+          export PATH="$CLANG_DIR/bin:$PATH:$GITHUB_WORKSPACE/workdir/toolchain/gcc64/bin/"
 
           # ========== 关键的环境变量（解决兼容性） ==========
           # 显式指定各个工具，防止 Makefile 回退到系统 GCC
