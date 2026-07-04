@@ -23,13 +23,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            git automake flex lzop bison gperf build-essential zip curl zlib1g-dev \
-            g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev \
-            squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven \
-            libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl \
-            libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev \
-            libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3 \
-            libelf-dev
+            build-essential bc bison flex libssl-dev libelf-dev libc6-dev linux-libc-dev cpio gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf git wget xz-utils python3-pip device-tree-compiler python2 python3 \
+            libelf-dev bison build-essential flex gcc-aarch64-linux-gnu python3-dev python3-venv swig
           mkdir -p $GITHUB_WORKSPACE/workdir
           cd $GITHUB_WORKSPACE/workdir
           echo "BUILD_TIME=$(TZ=Asia/Shanghai date '+%Y%m%d%H%M')" >> $GITHUB_ENV
@@ -42,31 +37,9 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/workdir/toolchain"
           cd "$GITHUB_WORKSPACE/workdir/toolchain"
 
-          # ↓↓↓ 换成 LineageOS 的 prebuilt clang r416183b
-          git clone https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b clang-r416183b
-          cd clang-r416183b
+          git clone https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b clang
 
-          git lfs install
-          git lfs pull
-
-          chmod -R u+x bin/ 2>/dev/null || true
-
-          file bin/clang
-          ls -lh bin/clang
-
-          # ↓↓↓ 目录名同步改
-          echo "CLANG_DIR=$GITHUB_WORKSPACE/workdir/toolchain/clang-r416183b" >> $GITHUB_ENV
-          
-      - name: Clone AArch64 GCC (aarch64-linux-android-4.9)
-        run: |
-          mkdir -p "$GITHUB_WORKSPACE/workdir/toolchain"
-          cd "$GITHUB_WORKSPACE/workdir/toolchain"
-          git clone --depth 1 \
-            https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 \
-            gcc64
-          # 确认前缀工具存在
-          ls -lh gcc64/bin/aarch64-linux-android-* | head -5
-          echo "GCC64_DIR=$GITHUB_WORKSPACE/workdir/toolchain/gcc64" >> $GITHUB_ENV
+          echo "CLANG_DIR=$GITHUB_WORKSPACE/workdir/toolchain/clang" >> $GITHUB_ENV
           
       - name: Get Kernel source
         run: |
@@ -81,10 +54,44 @@ jobs:
           export ARCH="arm64"
           export SUBARCH="arm64"
 
-          export CLANG_DIR=$GITHUB_WORKSPACE/workdir/toolchain/clang-r563880c
-          export PATH="$CLANG_DIR/bin:$PATH:$GITHUB_WORKSPACE/workdir/toolchain/gcc64/bin/"
+          # NDK r29 中 LLVM 预编译目录
+          export CLANG_DIR=$GITHUB_WORKSPACE/workdir/toolchain/clang
+          export PATH="$CLANG_DIR/bin:$PATH"
 
           # ========== 关键的环境变量（解决兼容性） ==========
+          # 显式指定各个工具，防止 Makefile 回退到系统 GCC
+          export CC=clang
+          export LD=ld.lld
+          export AR=llvm-ar
+          export NM=llvm-nm
+          export OBJCOPY=llvm-objcopy
+          export OBJDUMP=llvm-objdump
+          export READELF=llvm-readelf
+          export STRIP=llvm-strip
+          export HOSTCC=clang
+          export HOSTCXX=clang++
+
+          # 告诉 Clang 目标平台的三元组（Android arm64 常用 aarch64-linux-android 或 aarch64-linux-gnu）
+          # export CLANG_TRIPLE=aarch64-linux-gnu-
+
+          # 有些旧内核 Makefile 仍然检查 CROSS_COMPILE，设为空可避免警告
+          export CROSS_COMPILE=aarch64-linux-gnu-
+
+          # 验证工具链版本
+          clang --version
+          ld.lld --version
+
+          cd $GITHUB_WORKSPACE/workdir/source
+
+          # 编译（LLVM=1 依然开启，配合上面环境变量双重保险）
+          make LLVM=1 O=out sdmsteppe-perf_defconfig
+          make -j$(nproc --all) LLVM=1 O=out
+
+      - name: Upload Kernel
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel
+          path: workdir/source/out/arch/arm64/boot/Image.gz          # ========== 关键的环境变量（解决兼容性） ==========
           # 显式指定各个工具，防止 Makefile 回退到系统 GCC
           export CC=clang
 
