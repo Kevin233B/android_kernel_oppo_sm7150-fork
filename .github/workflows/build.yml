@@ -68,8 +68,6 @@ jobs:
           export OBJDUMP=llvm-objdump
           export READELF=llvm-readelf
           export STRIP=llvm-strip
-          export HOSTCC=clang
-          export HOSTCXX=clang++
 
           # 告诉 Clang 目标平台的三元组（Android arm64 常用 aarch64-linux-android 或 aarch64-linux-gnu）
           # export CLANG_TRIPLE=aarch64-linux-gnu-
@@ -84,7 +82,7 @@ jobs:
           cd $GITHUB_WORKSPACE/workdir/source
 
           # 编译（LLVM=1 依然开启，配合上面环境变量双重保险）
-          make LLVM=1 LLAM_IAS=1 O=out sm7150-perf_defconfig
+          make LLVM=1 LLAM_IAS=1 O=out vendor/sm7150-perf_defconfig
           make -j$(nproc --all) LLVM=1 LLAM_IAS=1 O=out
 
       - name: Upload Kernel
