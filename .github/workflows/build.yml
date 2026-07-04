@@ -63,7 +63,7 @@ jobs:
 
           # ========== 关键的环境变量（解决兼容性） ==========
           # 显式指定各个工具，防止 Makefile 回退到系统 GCC
-          export CC=myclang/clang
+          # export CC=myclang/clang
           export LD=ld.lld
           export AR=llvm-ar
           export NM=llvm-nm
