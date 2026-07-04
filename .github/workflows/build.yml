@@ -84,8 +84,8 @@ jobs:
           cd $GITHUB_WORKSPACE/workdir/source
 
           # 编译（LLVM=1 依然开启，配合上面环境变量双重保险）
-          make LLVM=1 O=out sdmsteppe-perf_defconfig
-          make -j$(nproc --all) LLVM=1 O=out
+          make LLVM=1 LLAM_IAS=1 O=out sm7150-perf_defconfig
+          make -j$(nproc --all) LLVM=1 LLAM_IAS=1 O=out
 
       - name: Upload Kernel
         uses: actions/upload-artifact@v4
