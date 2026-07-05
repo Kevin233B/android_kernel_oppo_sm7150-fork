@@ -86,7 +86,7 @@ jobs:
 
           # 编译（LLVM=1 依然开启，配合上面环境变量双重保险）
           make LLVM=1 LLVM_IAS=1 O=out vendor/sm7150-perf_defconfig
-          make -j$(nproc --all) LLVM=1 LLVM_IAS=1 O=out KCFLAGS="-Wno-error" CFLAGS="-Wno-error"
+          make -j$(nproc --all) LLVM=1 LLVM_IAS=1 O=out EXTRA_CFLAGS="-Wno-error"
 
       - name: Upload Kernel
         uses: actions/upload-artifact@v4
